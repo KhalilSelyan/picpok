@@ -1,0 +1,3 @@
+{
+  "extends": "@picpok/config/tsconfig.base.json"
+}

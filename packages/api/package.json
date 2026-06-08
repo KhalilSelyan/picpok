@@ -1,0 +1,26 @@
+{
+  "name": "@picpok/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@picpok/auth": "workspace:*",
+    "@picpok/db": "workspace:*",
+    "@picpok/env": "workspace:*",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@picpok/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

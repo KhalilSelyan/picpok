@@ -1,0 +1,24 @@
+{
+  "name": "@picpok/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@picpok/db": "workspace:*",
+    "@picpok/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@picpok/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
