@@ -1,33 +1,36 @@
 {
-  "name": "picpok",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "type": "module",
-  "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "check-types": "turbo check-types",
-    "dev:web": "turbo -F web dev",
-    "db:push": "turbo -F @picpok/db db:push",
-    "db:studio": "turbo -F @picpok/db db:studio",
-    "db:generate": "turbo -F @picpok/db db:generate",
-    "db:migrate": "turbo -F @picpok/db db:migrate",
-    "check": "biome check --write ."
-  },
-  "dependencies": {
-    "@picpok/env": "workspace:*",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
-    "@picpok/config": "workspace:*",
-    "@types/node": "catalog:",
-    "turbo": "^2.9.16",
-    "typescript": "catalog:"
-  },
-  "packageManager": "pnpm@10.30.1"
+	"name": "picpok",
+	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"type": "module",
+	"scripts": {
+		"dev": "turbo dev",
+		"build": "turbo build",
+		"check-types": "turbo check-types",
+		"dev:web": "turbo -F web dev",
+		"db:start": "docker compose up -d postgres",
+		"db:stop": "docker compose stop postgres",
+		"db:reset": "docker compose down -v",
+		"db:push": "turbo -F @picpok/db db:push",
+		"db:studio": "turbo -F @picpok/db db:studio",
+		"db:generate": "turbo -F @picpok/db db:generate",
+		"db:migrate": "turbo -F @picpok/db db:migrate",
+		"check": "biome check --write ."
+	},
+	"dependencies": {
+		"@picpok/env": "workspace:*",
+		"dotenv": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.16",
+		"@picpok/config": "workspace:*",
+		"@types/node": "catalog:",
+		"turbo": "^2.9.16",
+		"typescript": "catalog:"
+	},
+	"packageManager": "pnpm@10.30.1"
 }
