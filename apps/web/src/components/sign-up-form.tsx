@@ -2,7 +2,7 @@ import { Button } from "@picpok/ui/components/button";
 import { Input } from "@picpok/ui/components/input";
 import { Label } from "@picpok/ui/components/label";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -71,8 +71,16 @@ export default function SignUpForm({
 	}
 
 	return (
-		<div className="mx-auto mt-10 w-full max-w-md p-6">
-			<h1 className="mb-6 text-center font-bold text-3xl">Create Account</h1>
+		<div className="w-full space-y-8">
+			<div className="space-y-3 text-center">
+				<p className="font-semibold text-sm text-white/50 uppercase tracking-[0.35em]">
+					Picpok
+				</p>
+				<h1 className="font-bold text-4xl tracking-tight">Create account</h1>
+				<p className="text-sm text-white/55">
+					Username and password only. No email ceremony.
+				</p>
+			</div>
 
 			<form
 				onSubmit={(e) => {
@@ -80,18 +88,22 @@ export default function SignUpForm({
 					e.stopPropagation();
 					form.handleSubmit();
 				}}
-				className="space-y-4"
+				className="space-y-5"
 			>
-				<div>
+				<div className="space-y-1.5">
 					<form.Field name="username">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Username</Label>
+								<Label htmlFor={field.name} className="text-white/70">
+									Username
+								</Label>
 								<Input
 									id={field.name}
 									name={field.name}
 									autoCapitalize="none"
 									autoComplete="username"
+									className="h-12 border-white/10 bg-white/10 text-white placeholder:text-white/30"
+									placeholder="your_username"
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) =>
@@ -99,7 +111,7 @@ export default function SignUpForm({
 									}
 								/>
 								{field.state.meta.errors.map((error) => (
-									<p key={error?.message} className="text-red-500">
+									<p key={error?.message} className="text-red-300 text-xs">
 										{error?.message}
 									</p>
 								))}
@@ -108,21 +120,26 @@ export default function SignUpForm({
 					</form.Field>
 				</div>
 
-				<div>
+				<div className="space-y-1.5">
 					<form.Field name="password">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Password</Label>
+								<Label htmlFor={field.name} className="text-white/70">
+									Password
+								</Label>
 								<Input
 									id={field.name}
 									name={field.name}
 									type="password"
+									autoComplete="new-password"
+									className="h-12 border-white/10 bg-white/10 text-white placeholder:text-white/30"
+									placeholder="At least 8 characters"
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
 								/>
 								{field.state.meta.errors.map((error) => (
-									<p key={error?.message} className="text-red-500">
+									<p key={error?.message} className="text-red-300 text-xs">
 										{error?.message}
 									</p>
 								))}
@@ -140,7 +157,7 @@ export default function SignUpForm({
 					{({ canSubmit, isSubmitting }) => (
 						<Button
 							type="submit"
-							className="w-full"
+							className="h-12 w-full rounded-full bg-white text-black hover:bg-white/85"
 							disabled={!canSubmit || isSubmitting}
 						>
 							{isSubmitting ? "Submitting..." : "Sign Up"}
@@ -149,14 +166,22 @@ export default function SignUpForm({
 				</form.Subscribe>
 			</form>
 
-			<div className="mt-4 text-center">
+			<div className="space-y-3 text-center">
 				<Button
 					variant="link"
 					onClick={onSwitchToSignIn}
-					className="text-indigo-600 hover:text-indigo-800"
+					className="text-white/70 hover:text-white"
 				>
-					Already have an account? Sign In
+					Already have an account? Sign in
 				</Button>
+				<div>
+					<Link
+						to="/"
+						className="text-white/40 text-xs underline-offset-4 hover:text-white/70 hover:underline"
+					>
+						Back to feed
+					</Link>
+				</div>
 			</div>
 		</div>
 	);
