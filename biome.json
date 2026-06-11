@@ -9,6 +9,7 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**",
+			"!**/.output",
 			"!**/.next",
 			"!**/dist",
 			"!**/.turbo",

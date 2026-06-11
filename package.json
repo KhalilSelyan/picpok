@@ -12,7 +12,7 @@
 	"scripts": {
 		"dev": "turbo dev",
 		"build": "turbo build",
-		"start": "node apps/web/dist/server/server.js",
+		"start": "node apps/web/.output/server/index.mjs",
 		"check-types": "turbo check-types",
 		"dev:web": "turbo -F web dev",
 		"db:start": "docker compose up -d postgres",
