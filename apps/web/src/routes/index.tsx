@@ -1,12 +1,20 @@
 import { Button } from "@picpok/ui/components/button";
 import {
+	type InfiniteData,
 	useInfiniteQuery,
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Heart, Loader2, LogIn, LogOut, RefreshCw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+	Heart,
+	ImageOff,
+	Loader2,
+	LogIn,
+	LogOut,
+	RefreshCw,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -27,6 +35,16 @@ type FeedImage = {
 	liked: boolean;
 };
 
+type FeedPage = {
+	page: number;
+	perPage: number;
+	totalResults: number;
+	nextPage: number | null;
+	images: FeedImage[];
+};
+
+const FEED_QUERY_KEY = ["feed", "list"] as const;
+
 function HomeComponent() {
 	const trpcClient = useTRPCClient();
 	const queryClient = useQueryClient();
@@ -35,7 +53,7 @@ function HomeComponent() {
 		authClient.useSession();
 
 	const feedQuery = useInfiniteQuery({
-		queryKey: ["feed", "list"],
+		queryKey: FEED_QUERY_KEY,
 		initialPageParam: 1,
 		queryFn: ({ pageParam }) =>
 			trpcClient.feed.list.query({ page: pageParam, perPage: 10 }),
@@ -45,11 +63,46 @@ function HomeComponent() {
 	const likeMutation = useMutation({
 		mutationFn: (input: { imageId: string; liked: boolean }) =>
 			trpcClient.likes.set.mutate(input),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["feed", "list"] });
+		onMutate: async (input) => {
+			await queryClient.cancelQueries({ queryKey: FEED_QUERY_KEY });
+
+			const previous =
+				queryClient.getQueryData<InfiniteData<FeedPage, number>>(
+					FEED_QUERY_KEY,
+				);
+
+			queryClient.setQueryData<InfiniteData<FeedPage, number>>(
+				FEED_QUERY_KEY,
+				(current) => {
+					if (!current) {
+						return current;
+					}
+
+					return {
+						...current,
+						pages: current.pages.map((page) => ({
+							...page,
+							images: page.images.map((image) =>
+								image.id === input.imageId
+									? { ...image, liked: input.liked }
+									: image,
+							),
+						})),
+					};
+				},
+			);
+
+			return { previous };
 		},
-		onError: (error) => {
+		onError: (error, _input, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(FEED_QUERY_KEY, context.previous);
+			}
+
 			toast.error(error.message);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: FEED_QUERY_KEY });
 		},
 	});
 
@@ -80,6 +133,13 @@ function HomeComponent() {
 
 	const images = feedQuery.data?.pages.flatMap((page) => page.images) ?? [];
 
+	useEffect(() => {
+		for (const image of images.slice(1, 4)) {
+			const preload = new Image();
+			preload.src = image.imageUrl;
+		}
+	}, [images]);
+
 	function handleLike(image: FeedImage) {
 		if (!session) {
 			window.location.href = "/login";
@@ -94,7 +154,7 @@ function HomeComponent() {
 			fetchOptions: {
 				onSuccess: () => {
 					queryClient.invalidateQueries({
-						queryKey: ["feed", "list"],
+						queryKey: FEED_QUERY_KEY,
 					});
 				},
 			},
@@ -205,14 +265,31 @@ function FeedItem({
 	isLiking: boolean;
 	onLike: () => void;
 }) {
+	const [didImageFail, setDidImageFail] = useState(false);
+
 	return (
 		<article className="relative h-dvh snap-start snap-always overflow-hidden bg-zinc-950">
-			<img
-				src={image.imageUrl}
-				alt={image.alt}
-				className="h-full w-full object-cover"
-				loading="lazy"
-			/>
+			{didImageFail ? (
+				<div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),_transparent_32rem)] px-8 text-center">
+					<div className="space-y-3 text-white/70">
+						<ImageOff className="mx-auto size-10 text-white/40" />
+						<p className="font-semibold text-lg text-white">
+							Photo unavailable
+						</p>
+						<p className="text-sm">
+							Pexels returned an image that could not be loaded.
+						</p>
+					</div>
+				</div>
+			) : (
+				<img
+					src={image.imageUrl}
+					alt={image.alt}
+					className="h-full w-full object-cover"
+					loading="lazy"
+					onError={() => setDidImageFail(true)}
+				/>
+			)}
 			<div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent" />
 			<div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/75 to-transparent" />
 

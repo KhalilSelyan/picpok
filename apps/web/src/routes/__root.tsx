@@ -43,6 +43,8 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
+	const showDevtools = import.meta.env.DEV;
+
 	return (
 		<html lang="en" className="dark">
 			<head>
@@ -51,8 +53,15 @@ function RootDocument() {
 			<body>
 				<Outlet />
 				<Toaster richColors />
-				<TanStackRouterDevtools position="bottom-left" />
-				<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+				{showDevtools ? (
+					<>
+						<TanStackRouterDevtools position="bottom-left" />
+						<ReactQueryDevtools
+							position="bottom"
+							buttonPosition="bottom-right"
+						/>
+					</>
+				) : null}
 				<Scripts />
 			</body>
 		</html>
