@@ -74,7 +74,12 @@ function normalizePexelsPhoto(photo: z.infer<typeof pexelsPhotoSchema>) {
 		photographer: photo.photographer,
 		width: photo.width,
 		height: photo.height,
-		imageUrl: photo.src.large2x ?? photo.src.large ?? photo.src.portrait ?? photo.src.original ?? "",
+		imageUrl:
+			photo.src.large2x ??
+			photo.src.large ??
+			photo.src.portrait ??
+			photo.src.original ??
+			"",
 		alt: photo.alt || `Photo by ${photo.photographer}`,
 		sourceUrl: photo.url,
 	};
@@ -87,12 +92,17 @@ export const appRouter = router({
 	feed: router({
 		list: publicProcedure.input(feedInput).query(async ({ ctx, input }) => {
 			const pexels = await fetchPexelsPhotos(input);
-			const images = pexels.photos.map(normalizePexelsPhoto).filter((image) => image.imageUrl);
+			const images = pexels.photos
+				.map(normalizePexelsPhoto)
+				.filter((image) => image.imageUrl);
 			const imageIds = images.map((image) => image.id);
 			const likedIds = new Set<string>();
 
 			if (ctx.session && imageIds.length > 0) {
-				const rows = await ctx.feedDb.listLikedImageIds(ctx.session.user.id, imageIds);
+				const rows = await ctx.feedDb.listLikedImageIds(
+					ctx.session.user.id,
+					imageIds,
+				);
 
 				for (const row of rows) {
 					likedIds.add(row.imageId);
@@ -112,13 +122,15 @@ export const appRouter = router({
 		}),
 	}),
 	likes: router({
-		set: protectedProcedure.input(likeInput).mutation(async ({ ctx, input }) => {
-			return ctx.feedDb.setLike({
-				userId: ctx.session.user.id,
-				imageId: input.imageId,
-				liked: input.liked,
-			});
-		}),
+		set: protectedProcedure
+			.input(likeInput)
+			.mutation(async ({ ctx, input }) => {
+				return ctx.feedDb.setLike({
+					userId: ctx.session.user.id,
+					imageId: input.imageId,
+					liked: input.liked,
+				});
+			}),
 	}),
 });
 export type AppRouter = typeof appRouter;

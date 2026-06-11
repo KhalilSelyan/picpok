@@ -12,7 +12,13 @@ export const feedDb = {
 		return db
 			.select({ imageId: like.imageId })
 			.from(like)
-			.where(and(eq(like.userId, userId), eq(like.liked, true), inArray(like.imageId, imageIds)));
+			.where(
+				and(
+					eq(like.userId, userId),
+					eq(like.liked, true),
+					inArray(like.imageId, imageIds),
+				),
+			);
 	},
 	async setLike(input: { userId: string; imageId: string; liked: boolean }) {
 		const [row] = await db
@@ -33,7 +39,7 @@ export const feedDb = {
 
 export async function createContext({ req }: { req: Request }) {
 	const session = await auth.api.getSession({
-    headers: req.headers,
+		headers: req.headers,
 	});
 	return {
 		feedDb,
