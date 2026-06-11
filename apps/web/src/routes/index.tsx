@@ -44,11 +44,13 @@ type FeedPage = {
 };
 
 const FEED_QUERY_KEY = ["feed", "list"] as const;
+const PENDING_LIKE_KEY = "picpok:pending-like-image-id";
 
 function HomeComponent() {
 	const trpcClient = useTRPCClient();
 	const queryClient = useQueryClient();
 	const loadMoreRef = useRef<HTMLDivElement | null>(null);
+	const didReplayPendingLikeRef = useRef(false);
 	const { data: session, isPending: isSessionPending } =
 		authClient.useSession();
 
@@ -140,8 +142,25 @@ function HomeComponent() {
 		}
 	}, [images]);
 
+	useEffect(() => {
+		if (!session || didReplayPendingLikeRef.current) {
+			return;
+		}
+
+		const pendingImageId = sessionStorage.getItem(PENDING_LIKE_KEY);
+
+		if (!pendingImageId) {
+			return;
+		}
+
+		didReplayPendingLikeRef.current = true;
+		sessionStorage.removeItem(PENDING_LIKE_KEY);
+		likeMutation.mutate({ imageId: pendingImageId, liked: true });
+	}, [session, likeMutation]);
+
 	function handleLike(image: FeedImage) {
 		if (!session) {
+			sessionStorage.setItem(PENDING_LIKE_KEY, image.id);
 			window.location.href = "/login";
 			return;
 		}
