@@ -41,11 +41,17 @@ Create an environment file from the example:
 cp .env.example .env
 ```
 
-Set `PEXELS_API_KEY` to a Pexels API key. The app calls Pexels from the backend only.
+Set `PEXELS_API_KEY` to a Pexels API key. The app calls Pexels from the backend only through tRPC, so the key is not shipped to browser code.
 
 ## Database Setup
 
 This project uses PostgreSQL with Drizzle ORM.
+
+Start the local Postgres container:
+
+```bash
+pnpm run db:start
+```
 
 Apply the schema to your database:
 
@@ -60,6 +66,32 @@ pnpm run dev
 ```
 
 Open [http://localhost:3001](http://localhost:3001) in your browser.
+
+## Auth Model
+
+The UI uses username/password only. Under the hood, Better Auth's username plugin handles username sign-in while signup supplies an internal local email derived from the username because Better Auth's email/password flow requires an email field.
+
+Likes are scoped to the authenticated user. Anonymous users can browse the feed, but tapping Like sends them to `/login`.
+
+## API Key Safety
+
+The Pexels key should only appear in server-side environment access:
+
+```bash
+rg "PEXELS_API_KEY|api.pexels.com" apps packages
+```
+
+Expected result: `PEXELS_API_KEY` is referenced from server/env/API code only, not client route/component code. In browser devtools, network requests should go to `/api/trpc/feed.list`, not directly to `api.pexels.com`.
+
+## Verification
+
+- Anonymous browsing loads the vertical feed.
+- Scrolling snaps one image per viewport and fetches additional pages.
+- Signup/login work with username and password.
+- Anonymous Like redirects to `/login`.
+- Logged-in Like persists after refresh.
+- Broken image URLs show a visible fallback state.
+- Production builds do not render React Query or TanStack Router devtools.
 
 ## Planning Docs
 
@@ -92,6 +124,9 @@ picpok/
 - `pnpm run dev:web` - Start only the web application.
 - `pnpm run check` - Run Biome formatting and linting.
 - `pnpm run check-types` - Check TypeScript types across all apps.
+- `pnpm run db:start` - Start local Postgres with Docker Compose.
+- `pnpm run db:stop` - Stop the local Postgres container.
+- `pnpm run db:reset` - Remove the local Postgres container and volume.
 - `pnpm run db:push` - Push schema changes to the database.
 - `pnpm run db:generate` - Generate database migrations.
 - `pnpm run db:migrate` - Run database migrations.
