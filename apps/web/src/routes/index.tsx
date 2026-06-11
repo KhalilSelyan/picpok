@@ -1,23 +1,276 @@
+import { Button } from "@picpok/ui/components/button";
+import {
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Heart, Loader2, LogIn, LogOut, RefreshCw } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
+
+import { authClient } from "@/lib/auth-client";
+import { useTRPCClient } from "@/utils/trpc";
 
 export const Route = createFileRoute("/")({
-  component: HomeComponent,
+	component: HomeComponent,
 });
 
+type FeedImage = {
+	id: string;
+	photographer: string;
+	width: number;
+	height: number;
+	imageUrl: string;
+	alt: string;
+	sourceUrl: string;
+	liked: boolean;
+};
+
 function HomeComponent() {
-  return (
-    <main className="min-h-dvh bg-black text-white">
-      <div className="mx-auto flex h-dvh w-full max-w-md items-center justify-center border-white/10 border-x bg-zinc-950 px-6 text-center">
-        <div className="space-y-4">
-          <p className="font-semibold text-sm uppercase tracking-[0.35em] text-white/50">
-            Picpok
-          </p>
-          <h1 className="font-bold text-4xl tracking-tight">Photo feed coming next.</h1>
-          <p className="text-sm text-white/60">
-            This route will become the full-screen snap-scrolling Pexels feed.
-          </p>
-        </div>
-      </div>
-    </main>
-  );
+	const trpcClient = useTRPCClient();
+	const queryClient = useQueryClient();
+	const loadMoreRef = useRef<HTMLDivElement | null>(null);
+	const { data: session, isPending: isSessionPending } =
+		authClient.useSession();
+
+	const feedQuery = useInfiniteQuery({
+		queryKey: ["feed", "list"],
+		initialPageParam: 1,
+		queryFn: ({ pageParam }) =>
+			trpcClient.feed.list.query({ page: pageParam, perPage: 10 }),
+		getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
+	});
+
+	const likeMutation = useMutation({
+		mutationFn: (input: { imageId: string; liked: boolean }) =>
+			trpcClient.likes.set.mutate(input),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["feed", "list"] });
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
+	});
+
+	useEffect(() => {
+		const node = loadMoreRef.current;
+
+		if (!node || !feedQuery.hasNextPage || feedQuery.isFetchingNextPage) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting) {
+					feedQuery.fetchNextPage();
+				}
+			},
+			{ rootMargin: "600px 0px" },
+		);
+
+		observer.observe(node);
+
+		return () => observer.disconnect();
+	}, [
+		feedQuery.hasNextPage,
+		feedQuery.isFetchingNextPage,
+		feedQuery.fetchNextPage,
+	]);
+
+	const images = feedQuery.data?.pages.flatMap((page) => page.images) ?? [];
+
+	function handleLike(image: FeedImage) {
+		if (!session) {
+			window.location.href = "/login";
+			return;
+		}
+
+		likeMutation.mutate({ imageId: image.id, liked: !image.liked });
+	}
+
+	function handleSignOut() {
+		authClient.signOut({
+			fetchOptions: {
+				onSuccess: () => {
+					queryClient.invalidateQueries({
+						queryKey: ["feed", "list"],
+					});
+				},
+			},
+		});
+	}
+
+	return (
+		<main className="min-h-dvh bg-black text-white">
+			<section className="relative mx-auto h-dvh w-full max-w-md overflow-hidden border-white/10 border-x bg-zinc-950">
+				<AuthPill
+					isPending={isSessionPending}
+					username={session?.user.name}
+					onSignOut={handleSignOut}
+				/>
+
+				{feedQuery.isPending ? <FeedStatus label="Loading photos" /> : null}
+
+				{feedQuery.isError ? (
+					<FeedStatus label="Could not load the feed">
+						<Button
+							type="button"
+							variant="outline"
+							className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+							onClick={() => feedQuery.refetch()}
+						>
+							<RefreshCw className="size-4" />
+							Retry
+						</Button>
+					</FeedStatus>
+				) : null}
+
+				{!feedQuery.isPending && !feedQuery.isError && images.length === 0 ? (
+					<FeedStatus label="No photos found" />
+				) : null}
+
+				{images.length > 0 ? (
+					<div className="h-dvh snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth">
+						{images.map((image, index) => (
+							<FeedItem
+								key={`${image.id}-${index}`}
+								image={image}
+								isLiking={
+									likeMutation.isPending &&
+									likeMutation.variables?.imageId === image.id
+								}
+								onLike={() => handleLike(image)}
+							/>
+						))}
+						<div ref={loadMoreRef} className="h-px" />
+						{feedQuery.isFetchingNextPage ? (
+							<div className="flex h-16 items-center justify-center text-white/50 text-xs">
+								<Loader2 className="mr-2 size-4 animate-spin" />
+								Loading more
+							</div>
+						) : null}
+					</div>
+				) : null}
+			</section>
+		</main>
+	);
+}
+
+function AuthPill({
+	isPending,
+	username,
+	onSignOut,
+}: {
+	isPending: boolean;
+	username?: string | null;
+	onSignOut: () => void;
+}) {
+	return (
+		<div className="pointer-events-none absolute top-4 right-4 z-20 pt-[env(safe-area-inset-top)]">
+			{isPending ? (
+				<div className="h-8 w-20 animate-pulse rounded-full bg-white/15" />
+			) : username ? (
+				<Button
+					type="button"
+					variant="outline"
+					className="pointer-events-auto rounded-full border-white/15 bg-black/35 px-3 text-white backdrop-blur-md hover:bg-white/15"
+					onClick={onSignOut}
+				>
+					<span className="max-w-24 truncate">{username}</span>
+					<LogOut className="size-3.5" />
+				</Button>
+			) : (
+				<a href="/login" className="pointer-events-auto">
+					<Button
+						type="button"
+						variant="outline"
+						className="rounded-full border-white/15 bg-black/35 px-3 text-white backdrop-blur-md hover:bg-white/15"
+					>
+						<LogIn className="size-3.5" />
+						Log in
+					</Button>
+				</a>
+			)}
+		</div>
+	);
+}
+
+function FeedItem({
+	image,
+	isLiking,
+	onLike,
+}: {
+	image: FeedImage;
+	isLiking: boolean;
+	onLike: () => void;
+}) {
+	return (
+		<article className="relative h-dvh snap-start snap-always overflow-hidden bg-zinc-950">
+			<img
+				src={image.imageUrl}
+				alt={image.alt}
+				className="h-full w-full object-cover"
+				loading="lazy"
+			/>
+			<div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent" />
+			<div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/75 to-transparent" />
+
+			<div className="absolute right-4 bottom-24 z-10 pb-[env(safe-area-inset-bottom)]">
+				<Button
+					type="button"
+					aria-pressed={image.liked}
+					size="icon-lg"
+					className="size-12 rounded-full border-white/15 bg-black/35 text-white shadow-2xl backdrop-blur-md hover:bg-white/15"
+					disabled={isLiking}
+					onClick={onLike}
+				>
+					{isLiking ? (
+						<Loader2 className="size-5 animate-spin" />
+					) : (
+						<Heart
+							className={`size-6 ${image.liked ? "fill-red-500 text-red-500" : "text-white"}`}
+						/>
+					)}
+				</Button>
+			</div>
+
+			<div className="absolute bottom-6 left-4 z-10 max-w-[72%] pb-[env(safe-area-inset-bottom)]">
+				<p className="font-semibold text-sm drop-shadow">
+					{image.photographer}
+				</p>
+				<a
+					href={image.sourceUrl}
+					target="_blank"
+					rel="noreferrer"
+					className="text-white/60 text-xs underline-offset-4 hover:underline"
+				>
+					View on Pexels
+				</a>
+			</div>
+		</article>
+	);
+}
+
+function FeedStatus({
+	children,
+	label,
+}: {
+	children?: React.ReactNode;
+	label: string;
+}) {
+	return (
+		<div className="flex h-dvh items-center justify-center px-6 text-center">
+			<div className="space-y-4">
+				<p className="font-semibold text-sm text-white/50 uppercase tracking-[0.35em]">
+					Picpok
+				</p>
+				<div className="space-y-3">
+					<Loader2 className="mx-auto size-5 animate-spin text-white/50" />
+					<p className="font-medium text-lg">{label}</p>
+					{children}
+				</div>
+			</div>
+		</div>
+	);
 }
