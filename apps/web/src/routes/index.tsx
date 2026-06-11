@@ -273,10 +273,6 @@ function HomeComponent() {
 										<FeedItem
 											image={image}
 											height={virtualItem.size}
-											isLiking={
-												likeMutation.isPending &&
-												likeMutation.variables?.imageId === image.id
-											}
 											onLike={() => handleLike(image)}
 										/>
 									</div>
@@ -339,12 +335,10 @@ function AuthPill({
 function FeedItem({
 	height,
 	image,
-	isLiking,
 	onLike,
 }: {
 	height: number;
 	image: FeedImage;
-	isLiking: boolean;
 	onLike: () => void;
 }) {
 	const [didImageFail, setDidImageFail] = useState(false);
@@ -384,16 +378,11 @@ function FeedItem({
 					aria-pressed={image.liked}
 					size="icon-lg"
 					className="size-12 rounded-full border-white/15 bg-black/35 text-white shadow-2xl backdrop-blur-md hover:bg-white/15"
-					disabled={isLiking}
 					onClick={onLike}
 				>
-					{isLiking ? (
-						<Loader2 className="size-5 animate-spin" />
-					) : (
-						<Heart
-							className={`size-6 ${image.liked ? "fill-red-500 text-red-500" : "text-white"}`}
-						/>
-					)}
+					<Heart
+						className={`size-6 transition-transform duration-150 ${image.liked ? "scale-110 fill-red-500 text-red-500" : "text-white"}`}
+					/>
 				</Button>
 			</div>
 
