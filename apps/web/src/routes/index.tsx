@@ -54,6 +54,7 @@ function HomeComponent() {
 	const feedScrollRef = useRef<HTMLDivElement | null>(null);
 	const loadMoreRef = useRef<HTMLDivElement | null>(null);
 	const didReplayPendingLikeRef = useRef(false);
+	const [itemHeight, setItemHeight] = useState(ESTIMATED_ITEM_HEIGHT);
 	const { data: session, isPending: isSessionPending } =
 		authClient.useSession();
 
@@ -140,8 +141,8 @@ function HomeComponent() {
 	const virtualizer = useVirtualizer({
 		count: images.length,
 		getScrollElement: () => feedScrollRef.current,
-		estimateSize: () =>
-			feedScrollRef.current?.clientHeight ?? ESTIMATED_ITEM_HEIGHT,
+		estimateSize: () => itemHeight,
+		getItemKey: (index) => images[index]?.id ?? index,
 		overscan: 2,
 	});
 	const virtualItems = virtualizer.getVirtualItems();
@@ -153,9 +154,29 @@ function HomeComponent() {
 		}
 	}, [images]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: TanStack Virtual needs an explicit remeasure when auth/feed height changes after cache updates.
 	useEffect(() => {
 		virtualizer.measure();
-	}, [virtualizer]);
+	}, [images.length, itemHeight, session?.user.id, virtualizer]);
+
+	useEffect(() => {
+		const node = feedScrollRef.current;
+
+		if (!node) {
+			return;
+		}
+
+		function updateItemHeight() {
+			setItemHeight(node?.clientHeight || ESTIMATED_ITEM_HEIGHT);
+		}
+
+		updateItemHeight();
+
+		const resizeObserver = new ResizeObserver(updateItemHeight);
+		resizeObserver.observe(node);
+
+		return () => resizeObserver.disconnect();
+	}, []);
 
 	useEffect(() => {
 		if (!session || didReplayPendingLikeRef.current) {
@@ -251,6 +272,7 @@ function HomeComponent() {
 									>
 										<FeedItem
 											image={image}
+											height={virtualItem.size}
 											isLiking={
 												likeMutation.isPending &&
 												likeMutation.variables?.imageId === image.id
@@ -315,10 +337,12 @@ function AuthPill({
 }
 
 function FeedItem({
+	height,
 	image,
 	isLiking,
 	onLike,
 }: {
+	height: number;
 	image: FeedImage;
 	isLiking: boolean;
 	onLike: () => void;
@@ -326,7 +350,10 @@ function FeedItem({
 	const [didImageFail, setDidImageFail] = useState(false);
 
 	return (
-		<article className="relative h-dvh snap-start snap-always overflow-hidden bg-zinc-950">
+		<article
+			className="relative snap-start snap-always overflow-hidden bg-zinc-950"
+			style={{ height }}
+		>
 			{didImageFail ? (
 				<div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),_transparent_32rem)] px-8 text-center">
 					<div className="space-y-3 text-white/70">
