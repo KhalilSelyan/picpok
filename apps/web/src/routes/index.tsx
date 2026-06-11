@@ -6,6 +6,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
 	Heart,
 	ImageOff,
@@ -45,10 +46,12 @@ type FeedPage = {
 
 const FEED_QUERY_KEY = ["feed", "list"] as const;
 const PENDING_LIKE_KEY = "picpok:pending-like-image-id";
+const ESTIMATED_ITEM_HEIGHT = 800;
 
 function HomeComponent() {
 	const trpcClient = useTRPCClient();
 	const queryClient = useQueryClient();
+	const feedScrollRef = useRef<HTMLDivElement | null>(null);
 	const loadMoreRef = useRef<HTMLDivElement | null>(null);
 	const didReplayPendingLikeRef = useRef(false);
 	const { data: session, isPending: isSessionPending } =
@@ -134,6 +137,14 @@ function HomeComponent() {
 	]);
 
 	const images = feedQuery.data?.pages.flatMap((page) => page.images) ?? [];
+	const virtualizer = useVirtualizer({
+		count: images.length,
+		getScrollElement: () => feedScrollRef.current,
+		estimateSize: () =>
+			feedScrollRef.current?.clientHeight ?? ESTIMATED_ITEM_HEIGHT,
+		overscan: 2,
+	});
+	const virtualItems = virtualizer.getVirtualItems();
 
 	useEffect(() => {
 		for (const image of images.slice(1, 4)) {
@@ -141,6 +152,10 @@ function HomeComponent() {
 			preload.src = image.imageUrl;
 		}
 	}, [images]);
+
+	useEffect(() => {
+		virtualizer.measure();
+	}, [virtualizer]);
 
 	useEffect(() => {
 		if (!session || didReplayPendingLikeRef.current) {
@@ -210,18 +225,42 @@ function HomeComponent() {
 				) : null}
 
 				{images.length > 0 ? (
-					<div className="h-dvh snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth">
-						{images.map((image, index) => (
-							<FeedItem
-								key={`${image.id}-${index}`}
-								image={image}
-								isLiking={
-									likeMutation.isPending &&
-									likeMutation.variables?.imageId === image.id
+					<div
+						ref={feedScrollRef}
+						className="h-dvh snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth"
+					>
+						<div
+							className="relative w-full"
+							style={{ height: `${virtualizer.getTotalSize()}px` }}
+						>
+							{virtualItems.map((virtualItem) => {
+								const image = images[virtualItem.index];
+
+								if (!image) {
+									return null;
 								}
-								onLike={() => handleLike(image)}
-							/>
-						))}
+
+								return (
+									<div
+										key={virtualItem.key}
+										className="absolute top-0 left-0 w-full snap-start snap-always"
+										style={{
+											height: `${virtualItem.size}px`,
+											transform: `translateY(${virtualItem.start}px)`,
+										}}
+									>
+										<FeedItem
+											image={image}
+											isLiking={
+												likeMutation.isPending &&
+												likeMutation.variables?.imageId === image.id
+											}
+											onLike={() => handleLike(image)}
+										/>
+									</div>
+								);
+							})}
+						</div>
 						<div ref={loadMoreRef} className="h-px" />
 						{feedQuery.isFetchingNextPage ? (
 							<div className="flex h-16 items-center justify-center text-white/50 text-xs">
